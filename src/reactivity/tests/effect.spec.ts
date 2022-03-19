@@ -22,4 +22,34 @@ describe("reactivity/effect", () => {
     expect(dummy).toBe(12);
     expect(r).toBe("foo");
   });
+
+  it("scheduler", () => {
+    // 通过effect的第二个参数给定scheduler
+    // 当effect第一次执行的时候还会执行fn
+    // 当 set 的时候，不会执行 fn，而是执行 scheduler
+    // 如果执行 runner 的时候，会再次执行 fn
+    let dummy;
+    let run: any;
+    const scheduler = jest.fn(() => {
+      run = runner;
+    });
+    const obj = reactive({ foo: 1 });
+    const runner = effect(
+      () => {
+        dummy = obj.foo;
+      },
+      { scheduler }
+    );
+    expect(scheduler).not.toHaveBeenCalled();
+    expect(dummy).toBe(1);
+    // should be called on first trigger
+    obj.foo++;
+    expect(scheduler).toHaveBeenCalledTimes(1);
+    // should not run yet
+    expect(dummy).toBe(1);
+    // manually run
+    run();
+    // should have run
+    expect(dummy).toBe(2);
+  });
 });
