@@ -67,7 +67,11 @@ describe("reactivity/effect", () => {
     obj.prop = 2;
     expect(dummy).toBe(2);
     stop(runner);
-    obj.prop = 3;
+    // obj.prop = 3;
+    // obj.prop = obj.prop + 1;
+    // 相比于 obj.prop = 3，++涉及到了get操作，这时候又会去收集依赖，之前
+    // stop 的时候清除的依赖白做了，考虑给全局加个 shouldTrack 参数用来判断
+    obj.prop++;
     expect(dummy).toBe(2);
 
     // stopped effect should still be manually callable
