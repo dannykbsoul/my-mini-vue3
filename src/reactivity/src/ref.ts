@@ -5,6 +5,7 @@ import { reactive } from "./reactive";
 class refImpl {
   // ref只有一个值，只会对应一个dep
   public dep: any;
+  public __v_isRef = true;
   private _value: any;
   private _rawValue: any;
   constructor(value) {
@@ -39,4 +40,12 @@ function convert(value) {
 
 export function ref(value) {
   return new refImpl(value);
+}
+
+export function isRef(ref) {
+  return !!ref.__v_isRef;
+}
+
+export function unref(ref) {
+  return isRef(ref) ? ref.value : ref;
 }

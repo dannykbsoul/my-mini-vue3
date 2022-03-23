@@ -1,5 +1,5 @@
 import { effect } from "../src/effective";
-import { ref } from "../src/ref";
+import { isRef, ref, unref } from "../src/ref";
 
 describe("reactivity/ref", () => {
   it("should hold a value", () => {
@@ -181,10 +181,10 @@ describe("reactivity/ref", () => {
   //   });
   // });
 
-  // test("unref", () => {
-  //   expect(unref(1)).toBe(1);
-  //   expect(unref(ref(1))).toBe(1);
-  // });
+  test("unref", () => {
+    expect(unref(1)).toBe(1);
+    expect(unref(ref(1))).toBe(1);
+  });
 
   // test("shallowRef", () => {
   //   const sref = shallowRef({ a: 1 });
@@ -221,15 +221,15 @@ describe("reactivity/ref", () => {
   //   expect(isShallow(shallowRef({ a: 1 }))).toBe(true);
   // });
 
-  // test("isRef", () => {
-  //   expect(isRef(ref(1))).toBe(true);
-  //   expect(isRef(computed(() => 1))).toBe(true);
+  test("isRef", () => {
+    expect(isRef(ref(1))).toBe(true);
+    // expect(isRef(computed(() => 1))).toBe(true);
 
-  //   expect(isRef(0)).toBe(false);
-  //   expect(isRef(1)).toBe(false);
-  //   // an object that looks like a ref isn't necessarily a ref
-  //   expect(isRef({ value: 0 })).toBe(false);
-  // });
+    expect(isRef(0)).toBe(false);
+    expect(isRef(1)).toBe(false);
+    // an object that looks like a ref isn't necessarily a ref
+    expect(isRef({ value: 0 })).toBe(false);
+  });
 
   // test("toRef", () => {
   //   const a = reactive({
