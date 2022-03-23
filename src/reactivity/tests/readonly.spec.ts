@@ -10,10 +10,10 @@ describe('reactivity/readonly', () => {
     expect(isReadonly(wrapped)).toBe(true);
     expect(isReactive(original)).toBe(false);
     expect(isReadonly(original)).toBe(false);
-    // expect(isReactive(wrapped.bar)).toBe(false);
-    // expect(isReadonly(wrapped.bar)).toBe(true);
-    // expect(isReactive(original.bar)).toBe(false);
-    // expect(isReadonly(original.bar)).toBe(false);
+    expect(isReactive(wrapped.bar)).toBe(false);
+    expect(isReadonly(wrapped.bar)).toBe(true);
+    expect(isReactive(original.bar)).toBe(false);
+    expect(isReadonly(original.bar)).toBe(false);
     // get
     expect(wrapped.foo).toBe(1);
     // has
