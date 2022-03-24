@@ -1,5 +1,5 @@
 import { effect } from "../src/effective";
-import { isRef, ref, unref } from "../src/ref";
+import { isRef, proxyRefs, ref, unref } from "../src/ref";
 
 describe("reactivity/ref", () => {
   it("should hold a value", () => {
@@ -38,6 +38,26 @@ describe("reactivity/ref", () => {
     expect(dummy).toBe(1);
     a.value.count = 2;
     expect(dummy).toBe(2);
+  });
+
+  // setup() 返回的对象值有ref类型的，但是我们实际用的时候没有再 .value
+  it("proxyRefs", () => {
+    const user = {
+      age: ref(10),
+      name: "zhou",
+    };
+    const proxyUser = proxyRefs(user);
+    expect(user.age.value).toBe(10);
+    expect(proxyUser.age).toBe(10);
+    expect(proxyUser.name).toBe("zhou");
+
+    proxyUser.age = 20;
+    expect(user.age.value).toBe(20);
+    expect(proxyUser.age).toBe(20);
+
+    proxyUser.age = ref(10);
+    expect(user.age.value).toBe(10);
+    expect(proxyUser.age).toBe(10);
   });
 
   // it("should work without initial value", () => {

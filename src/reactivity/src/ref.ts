@@ -49,3 +49,19 @@ export function isRef(ref) {
 export function unref(ref) {
   return isRef(ref) ? ref.value : ref;
 }
+
+export function proxyRefs(objectWithRefs) {
+  return new Proxy(objectWithRefs, {
+    get(target, key) {
+      return unref(Reflect.get(target, key));
+    },
+    set(target, key, newVal) {
+      // 传过来的新值如果不是 ref 则需要.value替换
+      // 如果是 ref 则需要整体替换
+      if (isRef(Reflect.get(target, key)) && !isRef(newVal)) {
+        return Reflect.get(target, key).value = newVal;
+      } 
+      return Reflect.set(target, key, newVal);
+    },
+  });
+}
