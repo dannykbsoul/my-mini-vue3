@@ -1,4 +1,5 @@
 import { hasChanged, isObject } from "../../shared";
+import { createDep } from "./dep";
 import { isTracking, trackEffects, triggerEffects } from "./effective";
 import { reactive } from "./reactive";
 
@@ -25,7 +26,7 @@ class refImpl {
       // 先修改值 再执行trigger
       this._rawValue = newValue;
       this._value = convert(newValue);
-      triggerEffects(this.dep);
+      triggerEffects(createDep(this.dep));
     }
   }
 }

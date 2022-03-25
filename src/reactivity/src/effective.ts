@@ -1,4 +1,5 @@
 import { extend } from "../../shared";
+import { createDep } from "./dep";
 
 let activeEffect;
 let shouldTrack;
@@ -13,6 +14,8 @@ export class ReactiveEffect {
     this.scheduler = scheduler;
   }
   run() {
+    // 每次都需要清除一次依赖再去收集依赖，用于分支切换
+    cleanupEffect(this);
     if (!this.active) {
       return this._fn();
     }
@@ -33,26 +36,39 @@ export class ReactiveEffect {
 }
 
 function cleanupEffect(effect) {
-  effect.deps.forEach((dep: any) => {
-    dep.delete(effect);
-  });
+  const { deps } = effect;
+  if (deps.length) {
+    for (let i = 0; i < deps.length; i++) {
+      deps[i].delete(effect);
+    }
+    deps.length = 0;
+  }
   effect.deps.length = 0;
 }
 
-const targetMap = new Map();
+// why use WeakMap？
+// 因为 targetMap 都是对象作为键名，但是对键名所引用的对象是弱引用，不会影响垃圾回收机制
+// 只要所引用的对象的其他引用都被清除，垃圾回收机制就会释放该对象所占用的内存。
+// 也就是说，一旦不再需要，WeakMap 里面的键名对象和所对应的键值对会自动消失，不用手动删除引用。
+// 应用场景
+// WeakMap 经常用于存储那些只有当 key 所引用的对象存在时才有价值的信息，例如这里的 targetMap 对应的 target，
+// 如果 target 对象没有任何的引用了，说明用户侧不再需要它了，此时如果用 Map 的话，即使用户侧的代码对 target 没有任何引用，
+// 这个 target 也不会被回收，最后可能导致内存溢出
+const targetMap = new WeakMap();
 export function track(target, key) {
   // 没有 activeEffect，也就没有必要进行依赖收集
   if (!isTracking()) return;
-    // target -> key -> deps
-    let depsMap = targetMap.get(target);
+  // target -> key -> deps(effect)
+  // 这样的映射关系可以精确的实现响应式
+  // 取出 depsMap，数据类型是 Map: key -> deps(effect)
+  let depsMap = targetMap.get(target);
   if (!depsMap) {
-    depsMap = new Map();
-    targetMap.set(target, depsMap);
+    targetMap.set(target, (depsMap = new Map()));
   }
+  // 根据 key 取出 deps，数据类型是 Set
   let dep = depsMap.get(key);
   if (!dep) {
-    dep = new Set();
-    depsMap.set(key, dep);
+    depsMap.set(key, (dep = new Set()));
   }
   trackEffects(dep);
 }
@@ -71,7 +87,7 @@ export function isTracking() {
 export function trigger(target, key) {
   const depsMap = targetMap.get(target);
   const deps = depsMap.get(key);
-  triggerEffects(deps);
+  deps && triggerEffects(createDep(deps));
 }
 
 export function triggerEffects(deps) {

@@ -23,6 +23,27 @@ describe("reactivity/effect", () => {
     expect(r).toBe("foo");
   });
 
+  // 分支切换与cleanup
+  it("should not be triggered by mutating a property, which is used in an inactive branch", () => {
+    let dummy;
+    const obj = reactive({ prop: "value", run: true });
+
+    const conditionalSpy = jest.fn(() => {
+      dummy = obj.run ? obj.prop : "other";
+    });
+    effect(conditionalSpy);
+
+    expect(dummy).toBe("value");
+    expect(conditionalSpy).toHaveBeenCalledTimes(1);
+    // 此时 run 为 false，应该不再依赖 obj.prop，也就是后续 obj.prop 变动，effect也不会执行
+    obj.run = false;
+    expect(dummy).toBe("other");
+    expect(conditionalSpy).toHaveBeenCalledTimes(2);
+    obj.prop = "value2";
+    expect(dummy).toBe("other");
+    expect(conditionalSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("scheduler", () => {
     // 通过 effect 的第二个参数给定 scheduler
     // 当 effect 第一次执行的时候还会执行 fn
