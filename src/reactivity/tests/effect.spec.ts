@@ -44,6 +44,23 @@ describe("reactivity/effect", () => {
     expect(conditionalSpy).toHaveBeenCalledTimes(2);
   });
 
+  // obj.foo++ 拆分成 obj.foo = obj.foo + 1
+  // 1. 首先读取 obj.foo，会触发 track 操作，将当前的 effect 收集起来
+  // 2. 接着将 +1 后的 foo 赋值 给 obj.foo，此时会触发 trigger 操作，即把之前收集的 effect 拿出来执行
+  // 3. 但其实上一个 effect 还在执行中，然后又把自己拿出来执行，就会导致无限递归的调用自己，造成栈溢出
+  // 我们发现对 obj.foo 的读取和设置都在同一个 effect 中执行
+  // 所以无论是 track 时候要收集的 effect 还是 trigger 时候要触发的 effect，都是 activeEffect
+  // 基于此我们可以在 trigger 的时候增加 守卫条件
+  it("should avoid infinite recursion", () => {
+    let obj = reactive({
+      foo: 1
+    })
+    effect(() => {
+      obj.foo++;
+    })
+    expect(obj.foo).toBe(2);
+  });
+
   // 允许嵌套 effect
   // 应用场景：
   // vue 的渲染函数其实就是在一个 effect 中执行的，Bar是Foo的子组件

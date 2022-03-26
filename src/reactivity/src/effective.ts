@@ -100,6 +100,8 @@ export function trigger(target, key) {
 
 export function triggerEffects(deps) {
   for (const effect of deps) {
+    // 当前执行的 activeEffect 与trigger触发的 effect 相同，则不触发执行
+    if (effect === activeEffect) return;
     if (effect.scheduler) {
       effect.scheduler();
     } else {
