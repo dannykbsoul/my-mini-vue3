@@ -103,6 +103,8 @@ describe("reactivity/effect", () => {
     expect(childSpy).toHaveBeenCalledTimes(5);
   });
 
+  // 可调度
+  // 当 trigger 动作触发 effect 重新执行时，有能力决定 effect 执行的时机、次数以及方式
   it("scheduler", () => {
     // 通过 effect 的第二个参数给定 scheduler
     // 当 effect 第一次执行的时候还会执行 fn
