@@ -3,6 +3,9 @@ import { createDep } from "./dep";
 
 let activeEffect;
 let shouldTrack;
+// 当嵌套 effect 存在时，activeEffect就不够用了，因为当嵌套的 activeEffect 激活的时候就会覆盖上一个 activeEffect
+// 此时内层的 activeEffect执行完，需要找到外层的 activeEffect，所以需要一个 stack 来存储
+const effectStack: unknown[] = [];
 export class ReactiveEffect {
   private _fn: any;
   deps = [];
@@ -20,9 +23,13 @@ export class ReactiveEffect {
       return this._fn();
     }
     shouldTrack = true;
+    activeEffect && effectStack.push(activeEffect);
     activeEffect = this;
     const result = this._fn();
-    shouldTrack = false;
+    // 执行完当前的 effect，需要还原之前的 effect
+    activeEffect = effectStack.pop();
+    // activeEffect 为空代表没有要执行的 effect，此时 shouldTrack 关闭
+    !activeEffect && (shouldTrack = false);
     return result;
   }
   stop() {
@@ -87,6 +94,7 @@ export function isTracking() {
 export function trigger(target, key) {
   const depsMap = targetMap.get(target);
   const deps = depsMap.get(key);
+  // deps执行前进行保存，防止陷入死循环
   deps && triggerEffects(createDep(deps));
 }
 

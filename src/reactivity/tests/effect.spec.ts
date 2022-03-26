@@ -44,6 +44,48 @@ describe("reactivity/effect", () => {
     expect(conditionalSpy).toHaveBeenCalledTimes(2);
   });
 
+  // 允许嵌套 effect
+  // 应用场景：
+  // vue 的渲染函数其实就是在一个 effect 中执行的，Bar是Foo的子组件
+  // effect(() => {
+  //   Foo.render();
+  //   effect(() => {
+  //     Bar.render();
+  //   })
+  // })
+  it("should allow nested effects", () => {
+    const nums = reactive({ num1: 0, num2: 1, num3: 2 });
+    const dummy: any = {};
+
+    const childSpy = jest.fn(() => (dummy.num1 = nums.num1));
+    const childeffect = effect(childSpy);
+    const parentSpy = jest.fn(() => {
+      dummy.num2 = nums.num2;
+      childeffect();
+      dummy.num3 = nums.num3;
+    });
+    effect(parentSpy);
+
+    expect(dummy).toEqual({ num1: 0, num2: 1, num3: 2 });
+    expect(parentSpy).toHaveBeenCalledTimes(1);
+    expect(childSpy).toHaveBeenCalledTimes(2);
+    // this should only call the childeffect
+    nums.num1 = 4;
+    expect(dummy).toEqual({ num1: 4, num2: 1, num3: 2 });
+    expect(parentSpy).toHaveBeenCalledTimes(1);
+    expect(childSpy).toHaveBeenCalledTimes(3);
+    // this calls the parenteffect, which calls the childeffect once
+    nums.num2 = 10;
+    expect(dummy).toEqual({ num1: 4, num2: 10, num3: 2 });
+    expect(parentSpy).toHaveBeenCalledTimes(2);
+    expect(childSpy).toHaveBeenCalledTimes(4);
+    // this calls the parenteffect, which calls the childeffect once
+    nums.num3 = 7;
+    expect(dummy).toEqual({ num1: 4, num2: 10, num3: 7 });
+    expect(parentSpy).toHaveBeenCalledTimes(3);
+    expect(childSpy).toHaveBeenCalledTimes(5);
+  });
+
   it("scheduler", () => {
     // 通过 effect 的第二个参数给定 scheduler
     // 当 effect 第一次执行的时候还会执行 fn
