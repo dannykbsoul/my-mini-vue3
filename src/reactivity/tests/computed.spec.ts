@@ -1,4 +1,5 @@
 import { computed } from "../src/computed";
+import { effect } from "../src/effective";
 import { reactive } from "../src/reactive";
 
 describe("reactivity/computed", () => {
@@ -55,17 +56,19 @@ describe("reactivity/computed", () => {
     expect(getter).toHaveBeenCalledTimes(2);
   });
 
-  // it("should trigger effect", () => {
-  //   const value = reactive<{ foo?: number }>({});
-  //   const cValue = computed(() => value.foo);
-  //   let dummy;
-  //   effect(() => {
-  //     dummy = cValue.value;
-  //   });
-  //   expect(dummy).toBe(undefined);
-  //   value.foo = 1;
-  //   expect(dummy).toBe(1);
-  // });
+  // 需要 computed 在 effect中生效
+  // 当
+  it("should trigger effect", () => {
+    const value = reactive({});
+    const cValue = computed(() => value.foo);
+    let dummy;
+    effect(() => {
+      dummy = cValue.value;
+    });
+    expect(dummy).toBe(undefined);
+    value.foo = 1;
+    expect(dummy).toBe(1);
+  });
 
   // it("should work when chained", () => {
   //   const value = reactive({ foo: 0 });

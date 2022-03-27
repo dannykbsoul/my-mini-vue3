@@ -117,7 +117,7 @@ export function stop(runner) {
 export function effect(fn, options: any = {}) {
   const _effect = new ReactiveEffect(fn, options.scheduler);
   extend(_effect, options);
-  _effect.run();
+  !options.lazy && _effect.run();
   const runner: any = _effect.run.bind(_effect);
   runner.effect = _effect;
   return runner;

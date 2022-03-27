@@ -31,7 +31,7 @@ class refImpl {
   }
 }
 
-function trackRefValue(ref) {
+export function trackRefValue(ref) {
   isTracking() && trackEffects(ref.dep);
 }
 

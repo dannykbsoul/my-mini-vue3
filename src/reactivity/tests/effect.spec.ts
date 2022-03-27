@@ -103,6 +103,19 @@ describe("reactivity/effect", () => {
     expect(childSpy).toHaveBeenCalledTimes(5);
   });
 
+  // 懒执行 effect
+  it("lazy", () => {
+    const obj = reactive({ foo: 1 });
+    let dummy;
+    const runner = effect(() => (dummy = obj.foo), { lazy: true });
+    expect(dummy).toBe(undefined);
+
+    expect(runner()).toBe(1);
+    expect(dummy).toBe(1);
+    obj.foo = 2;
+    expect(dummy).toBe(2);
+  });
+
   // 可调度
   // 当 trigger 动作触发 effect 重新执行时，有能力决定 effect 执行的时机、次数以及方式
   it("scheduler", () => {
