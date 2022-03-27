@@ -28,4 +28,26 @@ describe('api: watch', () => {
     obj.num = 2;
     expect(dummy).toBe(2);
   });
+
+  it("support expired effect", () => {
+    let finalData;
+    const obj = reactive({
+      foo: 1
+    })
+    watch(obj, async (newValue, oldValue, onInvalid) => {
+      let expired = false;
+      onInvalid(() => {
+        expired = true;
+      })
+      const res = await fetch('...');
+
+      if (!expired) {
+        finalData = res;
+      }
+    })
+    obj.foo++;
+    setTimeout(() => {
+      obj.foo++
+    }, 200);
+  });
 })

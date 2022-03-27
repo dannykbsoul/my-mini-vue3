@@ -1,20 +1,32 @@
-import { isObject } from "../../shared";
+import { isFunction, isObject } from "../../shared";
 import { effect } from "./effective";
 
 // source 为 watch 的响应式对象 or 函数
 // 函数可以指定该 watch 依赖哪些响应式数据
 export function watch(source, cb, options?: any) {
-  let getter, oldValue, newValue;
-  if (typeof source === "function") {
+  let getter;
+  if (isFunction(source)) {
     getter = source;
   } else {
     getter = () => traverse(source);
   }
 
+  let oldValue, newValue;
+
+  // 用来存储用户注册的过期回调
+  let cleanup;
+
+  function onInvalidate(fn) {
+    // 将过期 cb 存储到 cleanup 中
+    cleanup = fn;
+  }
+
   const job = () => {
     // 在 scheduler 中重新执行 effect，得到 newValue
     newValue = effectFn();
-    cb(newValue, oldValue);
+    // 在调用当前函数之前，先调用上一个 cb 传过来过期函数
+    if (cleanup) cleanup();
+    cb(newValue, oldValue, onInvalidate);
     // 更新 oldValue
     oldValue = newValue;
   };
