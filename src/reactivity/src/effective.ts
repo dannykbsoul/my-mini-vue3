@@ -1,4 +1,5 @@
 import { extend } from "../../shared";
+import { ITERATE_KEY, TriggerType } from "./baseHandlers";
 import { createDep } from "./dep";
 
 let activeEffect;
@@ -91,11 +92,15 @@ export function isTracking() {
   return shouldTrack && activeEffect;
 }
 
-export function trigger(target, key) {
+export function trigger(target, key, type) {
   const depsMap = targetMap.get(target);
-  const deps = depsMap.get(key);
+  const deps = depsMap.get(key) || [];
+  // 如果新增了 key，需要触发之前 for in 收集到的 effect
+  // delete 会影响 for ... in的遍历结果，所以也需要触发它的依赖
+  const iterateDeps =
+    (type === TriggerType.ADD || TriggerType.DEL ? depsMap.get(ITERATE_KEY) : []) || [];
   // deps执行前进行保存，防止陷入死循环
-  deps && triggerEffects(createDep(deps));
+  triggerEffects(createDep([...deps, ...iterateDeps]));
 }
 
 export function triggerEffects(deps) {
