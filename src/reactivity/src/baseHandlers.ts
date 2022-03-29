@@ -1,4 +1,4 @@
-import { extend, hasOwn, isObject } from "../../shared";
+import { extend, hasChanged, hasOwn, isObject } from "../../shared";
 import { track, trigger } from "./effective";
 import { reactive, ReactiveFlags, readonly } from "./reactive";
 
@@ -22,6 +22,11 @@ function createGetter(isReadonly = false, isShallow = false) {
     } else if (key === ReactiveFlags.IS_READONLY) {
       return isReadonly;
     }
+    // 代理对象可以通过 raw 属性访问到原始数据
+    if (key === "raw") {
+      return target;
+    }
+
     const res = Reflect.get(target, key);
     if (isShallow) return res;
     if (isObject(res)) {
@@ -33,12 +38,16 @@ function createGetter(isReadonly = false, isShallow = false) {
 }
 
 function createSetter() {
-  return function set(target, key, value) {
+  return function set(target, key, value, reveiver) {
     const type = hasOwn(target, key)
       ? TriggerType.SET
       : TriggerType.ADD;
+    const oldValue = Reflect.get(target, key);
     const res = Reflect.set(target, key, value);
-    trigger(target, key, type);
+    // reveiver 就是 target 的代理对象，此时才会去考虑触发
+    if (reveiver.raw === target) {
+      hasChanged(oldValue, value) && trigger(target, key, type);
+    }
     return res;
   };
 }

@@ -21,7 +21,7 @@ describe("reactivity/effect", () => {
     const runner = effect(() => {
       dummy++;
       return "foo";
-    })
+    });
     expect(dummy).toBe(11);
     const r = runner();
     expect(dummy).toBe(12);
@@ -85,66 +85,76 @@ describe("reactivity/effect", () => {
     expect(dummy).toBe(true);
   });
 
-  // it("should observe properties on the prototype chain", () => {
-  //   let dummy;
-  //   const counter = reactive({ num: 0 });
-  //   const parentCounter = reactive({ num: 2 });
-  //   Object.setPrototypeOf(counter, parentCounter);
-  //   effect(() => (dummy = counter.num));
+  it("should observe properties on the prototype chain", () => {
+    let dummy;
+    const counter = reactive({ num: 0 });
+    const parentCounter = reactive({ num: 2 });
+    Object.setPrototypeOf(counter, parentCounter);
+    effect(() => (dummy = counter.num));
 
-  //   expect(dummy).toBe(0);
-  //   // @ts-ignore
-  //   delete counter.num;
-  //   expect(dummy).toBe(2);
-  //   parentCounter.num = 4;
-  //   expect(dummy).toBe(4);
-  //   counter.num = 3;
-  //   expect(dummy).toBe(3);
-  // });
+    expect(dummy).toBe(0);
+    // @ts-ignore
+    delete counter.num;
+    expect(dummy).toBe(2);
+    parentCounter.num = 4;
+    expect(dummy).toBe(4);
+    counter.num = 3;
+    expect(dummy).toBe(3);
+  });
 
-  // it("should observe has operations on the prototype chain", () => {
-  //   let dummy;
-  //   const counter = reactive({ num: 0 });
-  //   const parentCounter = reactive({ num: 2 });
-  //   Object.setPrototypeOf(counter, parentCounter);
-  //   effect(() => (dummy = "num" in counter));
+  it("should observe has operations on the prototype chain", () => {
+    let dummy;
+    const counter = reactive({ num: 0 });
+    const parentCounter = reactive({ num: 2 });
+    Object.setPrototypeOf(counter, parentCounter);
+    effect(() => (dummy = "num" in counter));
 
-  //   expect(dummy).toBe(true);
-  //   // @ts-ignore
-  //   delete counter.num;
-  //   expect(dummy).toBe(true);
-  //   // @ts-ignore
-  //   delete parentCounter.num;
-  //   expect(dummy).toBe(false);
-  //   counter.num = 3;
-  //   expect(dummy).toBe(true);
-  // });
+    expect(dummy).toBe(true);
+    // @ts-ignore
+    delete counter.num;
+    expect(dummy).toBe(true);
+    // @ts-ignore
+    delete parentCounter.num;
+    expect(dummy).toBe(false);
+    counter.num = 3;
+    expect(dummy).toBe(true);
+  });
 
-  // it("should observe inherited property accessors", () => {
-  //   let dummy, parentDummy, hiddenValue: any;
-  //   const obj = reactive<{ prop?: number }>({});
-  //   const parent = reactive({
-  //     set prop(value) {
-  //       hiddenValue = value;
-  //     },
-  //     get prop() {
-  //       return hiddenValue;
-  //     },
-  //   });
-  //   Object.setPrototypeOf(obj, parent);
-  //   effect(() => (dummy = obj.prop));
-  //   effect(() => (parentDummy = parent.prop));
+  // obj.prop = 4; 会导致副作用函数执行两次
+  // effect(() => (dummy = obj.prop));
+  // 1. 读取 obj 的 prop 属性，此时会执行 obj 的 get 方法，此时obj.prop与副作用函数有了响应式联系
+  // 2. 当 obj 中 发现找不到 prop 属性，会去它的原型上找，此时触发 parent 的 get 方法，此时 parent.prop与副作用函数有了响应式联系
+  // 3. 当我们 obj.prop = 4; 设置的时候，首先会去触发 obj 的 set 方法，然后触发依赖的副作用函数执行
+  // 4. 由于 set 的时候发现找不到 prop 属性，则去它的原型上 set，即触发 parent 的 set 方法，然后触发依赖的副作用函数执行
+  // 5. 所以一次设置会导致副作用函数重复的执行两次
 
-  //   expect(dummy).toBe(undefined);
-  //   expect(parentDummy).toBe(undefined);
-  //   obj.prop = 4;
-  //   expect(dummy).toBe(4);
-  //   // this doesn't work, should it?
-  //   // expect(parentDummy).toBe(4)
-  //   parent.prop = 2;
-  //   expect(dummy).toBe(2);
-  //   expect(parentDummy).toBe(2);
-  // });
+  // 优化
+  
+  it("should observe inherited property accessors", () => {
+    let dummy, parentDummy, hiddenValue: any;
+    const obj = reactive({});
+    const parent = reactive({
+      set prop(value) {
+        hiddenValue = value;
+      },
+      get prop() {
+        return hiddenValue;
+      },
+    });
+    Object.setPrototypeOf(obj, parent);
+    effect(() => (dummy = obj.prop));
+    effect(() => (parentDummy = parent.prop));
+
+    expect(dummy).toBe(undefined);
+    expect(parentDummy).toBe(undefined);
+    obj.prop = 4;
+    expect(dummy).toBe(4);
+    // this doesn't work, should it?
+    // expect(parentDummy).toBe(4)
+    parent.prop = 2;
+    expect(dummy).toBe(2);
+    expect(parentDummy).toBe(2);
+  });
 
   it("should observe function call chains", () => {
     let dummy;
@@ -244,11 +254,11 @@ describe("reactivity/effect", () => {
   // 基于此我们可以在 trigger 的时候增加 守卫条件
   it("should avoid infinite recursion", () => {
     let obj = reactive({
-      foo: 1
-    })
+      foo: 1,
+    });
     effect(() => {
       obj.foo++;
-    })
+    });
     expect(obj.foo).toBe(2);
   });
 
