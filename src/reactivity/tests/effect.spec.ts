@@ -129,7 +129,9 @@ describe("reactivity/effect", () => {
   // 5. 所以一次设置会导致副作用函数重复的执行两次
 
   // 优化
-  
+  // 通过 reveiver 来判断当前 set 触发 是自己的行为还是他人的行为
+  // 这里 obj get 的时候，target 是 {}, receiver 是 obj
+  // 通过 obj get 触发从而间接触发 parent get 的时候，target 是 proto，reveiver 是 obj
   it("should observe inherited property accessors", () => {
     let dummy, parentDummy, hiddenValue: any;
     const obj = reactive({});

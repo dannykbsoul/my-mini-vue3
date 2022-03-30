@@ -4,6 +4,7 @@ import { reactive, ReactiveFlags, readonly } from "./reactive";
 
 const get = createGetter();
 const set = createSetter();
+const shallowGet = createGetter(false, true);
 const readonlyGet = createGetter(true);
 const shallowReadonlyGet = createGetter(true, true);
 
@@ -21,6 +22,8 @@ function createGetter(isReadonly = false, isShallow = false) {
       return !isReadonly;
     } else if (key === ReactiveFlags.IS_READONLY) {
       return isReadonly;
+    } else if (key === ReactiveFlags.IS_SHALLOW) {
+      return isShallow;
     }
     // 代理对象可以通过 raw 属性访问到原始数据
     if (key === "raw") {
@@ -29,9 +32,11 @@ function createGetter(isReadonly = false, isShallow = false) {
 
     const res = Reflect.get(target, key);
     if (isShallow) return res;
+    // 深响应
     if (isObject(res)) {
       return isReadonly ? readonly(res) : reactive(res);
     }
+    // 只读的情况 不需要依赖收集
     !isReadonly && track(target, key);
     return res;
   }
@@ -84,6 +89,10 @@ export const mutableHandlers = {
   has,
   ownKeys,
 };
+
+export const shallowReactiveHandlers = extend({}, mutableHandlers, {
+  get: shallowGet,
+});
 
 export const readonlyHandlers = {
   get: readonlyGet,

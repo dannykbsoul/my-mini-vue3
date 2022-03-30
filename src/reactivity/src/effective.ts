@@ -94,6 +94,7 @@ export function isTracking() {
 
 export function trigger(target, key, type) {
   const depsMap = targetMap.get(target);
+  if (!depsMap) return;
   const deps = depsMap.get(key) || [];
   // 如果新增了 key，需要触发之前 for in 收集到的 effect
   // delete 会影响 for ... in的遍历结果，所以也需要触发它的依赖
