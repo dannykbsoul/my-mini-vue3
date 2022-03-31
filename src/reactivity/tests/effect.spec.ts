@@ -172,42 +172,67 @@ describe("reactivity/effect", () => {
     expect(dummy).toBe(2);
   });
 
-  // it("should observe iteration", () => {
-  //   let dummy;
-  //   const list = reactive(["Hello"]);
-  //   effect(() => (dummy = list.join(" ")));
+  // 对数组的读取操作
+  // 1. arr[0]
+  // 2. arr.length
+  // 3. arr 当作对象，使用 for ... in 循环遍历
+  // 4. for ... of遍历数组
+  // 5. 数组的原型方法 concat/join/every/some/find/findIndex/includes以及其他不改变原数组的原型方法
 
-  //   expect(dummy).toBe("Hello");
-  //   list.push("World!");
-  //   expect(dummy).toBe("Hello World!");
-  //   list.shift();
-  //   expect(dummy).toBe("World!");
-  // });
+  // 对数组的设置操作
+  // 1. arr[1] = 3
+  // 2. arr.length = 0
+  // 3. 栈方法push/pop/shift/unshift
+  // 4. 修改原数组的原型方法 splice/fill/sort
+  it("should observe iteration", () => {
+    let dummy;
+    const list = reactive(["Hello"]);
+    effect(() => (dummy = list.join(" ")));
 
-  // it("should observe implicit array length changes", () => {
-  //   let dummy;
-  //   const list = reactive(["Hello"]);
-  //   effect(() => (dummy = list.join(" ")));
+    expect(dummy).toBe("Hello");
+    list.push("World!");
+    expect(dummy).toBe("Hello World!");
+    list.shift();
+    expect(dummy).toBe("World!");
+  });
 
-  //   expect(dummy).toBe("Hello");
-  //   list[1] = "World!";
-  //   expect(dummy).toBe("Hello World!");
-  //   list[3] = "Hello!";
-  //   expect(dummy).toBe("Hello World!  Hello!");
-  // });
+  it("should observe implicit array length changes", () => {
+    let dummy;
+    const list = reactive(["Hello"]);
+    effect(() => (dummy = list.join(" ")));
 
-  // it("should observe sparse array mutations", () => {
-  //   let dummy;
-  //   const list = reactive<string[]>([]);
-  //   list[1] = "World!";
-  //   effect(() => (dummy = list.join(" ")));
+    expect(dummy).toBe("Hello");
+    list[1] = "World!";
+    expect(dummy).toBe("Hello World!");
+    list[3] = "Hello!";
+    expect(dummy).toBe("Hello World!  Hello!");
+  });
 
-  //   expect(dummy).toBe(" World!");
-  //   list[0] = "Hello";
-  //   expect(dummy).toBe("Hello World!");
-  //   list.pop();
-  //   expect(dummy).toBe("Hello");
-  // });
+  // 由于 reactive 具有深响应的特性
+  // get arr[0] 的时候，发现 arr[0] 是 object，则会继续调用 reactive 进行包装
+  // arr.includes 内部也会调用 get arr[0]，这样又会调用 reactive 进行包装
+  // 两次 reactive 返回的对象不一致，所以我们考虑维护一个 reactiveMap，用来维护原始对象 raw 和 proxy 对象的map
+  it("avoid create reactive multiply", () => {
+    const obj = {};
+    const arr = reactive([obj]);
+    expect(arr.includes(arr[0])).toBe(true);
+    // 我们希望这也是 true，所以我们需要拦截 includes 方法，当在响应式对象中没找到符合的
+    // 则去 raw 上找是否符合
+    expect(arr.includes(obj)).toBe(true);
+  });
+
+  it("should observe sparse array mutations", () => {
+    let dummy;
+    const list = reactive([]);
+    list[1] = "World!";
+    effect(() => (dummy = list.join(" ")));
+
+    expect(dummy).toBe(" World!");
+    list[0] = "Hello";
+    expect(dummy).toBe("Hello World!");
+    list.pop();
+    expect(dummy).toBe("Hello");
+  });
 
   it("should observe enumeration", () => {
     let dummy = 0;
@@ -225,6 +250,271 @@ describe("reactivity/effect", () => {
     delete numbers.num1;
     expect(dummy).toBe(4);
   });
+
+  it("should observe symbol keyed properties", () => {
+    const key = Symbol("symbol keyed prop");
+    let dummy, hasDummy;
+    const obj = reactive({ [key]: "value" });
+    effect(() => (dummy = obj[key]));
+    effect(() => (hasDummy = key in obj));
+
+    expect(dummy).toBe("value");
+    expect(hasDummy).toBe(true);
+    obj[key] = "newValue";
+    expect(dummy).toBe("newValue");
+    // @ts-ignore
+    delete obj[key];
+    expect(dummy).toBe(undefined);
+    expect(hasDummy).toBe(false);
+  });
+
+  it("should not observe well-known symbol keyed properties", () => {
+    const key = Symbol.isConcatSpreadable;
+    let dummy;
+    const array: any = reactive([]);
+    effect(() => (dummy = array[key]));
+
+    expect(array[key]).toBe(undefined);
+    expect(dummy).toBe(undefined);
+    array[key] = true;
+    expect(array[key]).toBe(true);
+    expect(dummy).toBe(undefined);
+  });
+
+  it("should observe function valued properties", () => {
+    const oldFunc = () => {};
+    const newFunc = () => {};
+
+    let dummy;
+    const obj = reactive({ func: oldFunc });
+    effect(() => (dummy = obj.func));
+
+    expect(dummy).toBe(oldFunc);
+    obj.func = newFunc;
+    expect(dummy).toBe(newFunc);
+  });
+
+  // it("should observe chained getters relying on this", () => {
+  //   const obj = reactive({
+  //     a: 1,
+  //     get b() {
+  //       return this.a;
+  //     },
+  //   });
+
+  //   let dummy;
+  //   effect(() => (dummy = obj.b));
+  //   expect(dummy).toBe(1);
+  //   obj.a++;
+  //   expect(dummy).toBe(2);
+  // });
+
+  // it("should observe methods relying on this", () => {
+  //   const obj = reactive({
+  //     a: 1,
+  //     b() {
+  //       return this.a;
+  //     },
+  //   });
+
+  //   let dummy;
+  //   effect(() => (dummy = obj.b()));
+  //   expect(dummy).toBe(1);
+  //   obj.a++;
+  //   expect(dummy).toBe(2);
+  // });
+
+  // it("should not observe set operations without a value change", () => {
+  //   let hasDummy, getDummy;
+  //   const obj = reactive({ prop: "value" });
+
+  //   const getSpy = jest.fn(() => (getDummy = obj.prop));
+  //   const hasSpy = jest.fn(() => (hasDummy = "prop" in obj));
+  //   effect(getSpy);
+  //   effect(hasSpy);
+
+  //   expect(getDummy).toBe("value");
+  //   expect(hasDummy).toBe(true);
+  //   obj.prop = "value";
+  //   expect(getSpy).toHaveBeenCalledTimes(1);
+  //   expect(hasSpy).toHaveBeenCalledTimes(1);
+  //   expect(getDummy).toBe("value");
+  //   expect(hasDummy).toBe(true);
+  // });
+
+  // it("should not observe raw mutations", () => {
+  //   let dummy;
+  //   const obj = reactive<{ prop?: string }>({});
+  //   effect(() => (dummy = toRaw(obj).prop));
+
+  //   expect(dummy).toBe(undefined);
+  //   obj.prop = "value";
+  //   expect(dummy).toBe(undefined);
+  // });
+
+  // it("should not be triggered by raw mutations", () => {
+  //   let dummy;
+  //   const obj = reactive<{ prop?: string }>({});
+  //   effect(() => (dummy = obj.prop));
+
+  //   expect(dummy).toBe(undefined);
+  //   toRaw(obj).prop = "value";
+  //   expect(dummy).toBe(undefined);
+  // });
+
+  // it("should not be triggered by inherited raw setters", () => {
+  //   let dummy, parentDummy, hiddenValue: any;
+  //   const obj = reactive<{ prop?: number }>({});
+  //   const parent = reactive({
+  //     set prop(value) {
+  //       hiddenValue = value;
+  //     },
+  //     get prop() {
+  //       return hiddenValue;
+  //     },
+  //   });
+  //   Object.setPrototypeOf(obj, parent);
+  //   effect(() => (dummy = obj.prop));
+  //   effect(() => (parentDummy = parent.prop));
+
+  //   expect(dummy).toBe(undefined);
+  //   expect(parentDummy).toBe(undefined);
+  //   toRaw(obj).prop = 4;
+  //   expect(dummy).toBe(undefined);
+  //   expect(parentDummy).toBe(undefined);
+  // });
+
+  // it("should avoid implicit infinite recursive loops with itself", () => {
+  //   const counter = reactive({ num: 0 });
+
+  //   const counterSpy = jest.fn(() => counter.num++);
+  //   effect(counterSpy);
+  //   expect(counter.num).toBe(1);
+  //   expect(counterSpy).toHaveBeenCalledTimes(1);
+  //   counter.num = 4;
+  //   expect(counter.num).toBe(5);
+  //   expect(counterSpy).toHaveBeenCalledTimes(2);
+  // });
+
+  // effect 里面嵌套了诸如 push 等栈操作
+  // push 既有读取 length 的操作，也有设置 length 的操作
+  // 所以当有两个副作用函数在一起
+  // 第一个 副作用函数执行完毕后，会与 length 属性建立响应式联系
+  // 当第二个副作用函数执行 push，导致 length 变化，从而第一个副作用函数也执行
+  // 第一个执行，length 变化，又会导致第二个副作用函数执行
+  // 。。。
+
+  // 考虑 push 的时候停止 track，因为 push 的本意是修改数组，而不是读取操作，push 的时候加上 shouldTrack 状态
+  it("should avoid infinite recursive loops when use Array.prototype.push/unshift/pop/shift", () => {
+    (["push", "unshift"] as const).forEach((key) => {
+      const arr = reactive([]);
+      const counterSpy1 = jest.fn(() => (arr[key] as any)(1));
+      const counterSpy2 = jest.fn(() => (arr[key] as any)(2));
+      effect(counterSpy1);
+      effect(counterSpy2);
+      expect(arr.length).toBe(2);
+      expect(counterSpy1).toHaveBeenCalledTimes(1);
+      expect(counterSpy2).toHaveBeenCalledTimes(1);
+    });
+    (["pop", "shift"] as const).forEach((key) => {
+      const arr = reactive([1, 2, 3, 4]);
+      const counterSpy1 = jest.fn(() => (arr[key] as any)());
+      const counterSpy2 = jest.fn(() => (arr[key] as any)());
+      effect(counterSpy1);
+      effect(counterSpy2);
+      expect(arr.length).toBe(2);
+      expect(counterSpy1).toHaveBeenCalledTimes(1);
+      expect(counterSpy2).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // it("should allow explicitly recursive raw function loops", () => {
+  //   const counter = reactive({ num: 0 });
+  //   const numSpy = jest.fn(() => {
+  //     counter.num++;
+  //     if (counter.num < 10) {
+  //       numSpy();
+  //     }
+  //   });
+  //   effect(numSpy);
+  //   expect(counter.num).toEqual(10);
+  //   expect(numSpy).toHaveBeenCalledTimes(10);
+  // });
+
+  // it("should avoid infinite loops with other effects", () => {
+  //   const nums = reactive({ num1: 0, num2: 1 });
+
+  //   const spy1 = jest.fn(() => (nums.num1 = nums.num2));
+  //   const spy2 = jest.fn(() => (nums.num2 = nums.num1));
+  //   effect(spy1);
+  //   effect(spy2);
+  //   expect(nums.num1).toBe(1);
+  //   expect(nums.num2).toBe(1);
+  //   expect(spy1).toHaveBeenCalledTimes(1);
+  //   expect(spy2).toHaveBeenCalledTimes(1);
+  //   nums.num2 = 4;
+  //   expect(nums.num1).toBe(4);
+  //   expect(nums.num2).toBe(4);
+  //   expect(spy1).toHaveBeenCalledTimes(2);
+  //   expect(spy2).toHaveBeenCalledTimes(2);
+  //   nums.num1 = 10;
+  //   expect(nums.num1).toBe(10);
+  //   expect(nums.num2).toBe(10);
+  //   expect(spy1).toHaveBeenCalledTimes(3);
+  //   expect(spy2).toHaveBeenCalledTimes(3);
+  // });
+
+  // it("should return a new reactive version of the function", () => {
+  //   function greet() {
+  //     return "Hello World";
+  //   }
+  //   const effect1 = effect(greet);
+  //   const effect2 = effect(greet);
+  //   expect(typeof effect1).toBe("function");
+  //   expect(typeof effect2).toBe("function");
+  //   expect(effect1).not.toBe(greet);
+  //   expect(effect1).not.toBe(effect2);
+  // });
+
+  // it("should discover new branches while running automatically", () => {
+  //   let dummy;
+  //   const obj = reactive({ prop: "value", run: false });
+
+  //   const conditionalSpy = jest.fn(() => {
+  //     dummy = obj.run ? obj.prop : "other";
+  //   });
+  //   effect(conditionalSpy);
+
+  //   expect(dummy).toBe("other");
+  //   expect(conditionalSpy).toHaveBeenCalledTimes(1);
+  //   obj.prop = "Hi";
+  //   expect(dummy).toBe("other");
+  //   expect(conditionalSpy).toHaveBeenCalledTimes(1);
+  //   obj.run = true;
+  //   expect(dummy).toBe("Hi");
+  //   expect(conditionalSpy).toHaveBeenCalledTimes(2);
+  //   obj.prop = "World";
+  //   expect(dummy).toBe("World");
+  //   expect(conditionalSpy).toHaveBeenCalledTimes(3);
+  // });
+
+  // it("should discover new branches when running manually", () => {
+  //   let dummy;
+  //   let run = false;
+  //   const obj = reactive({ prop: "value" });
+  //   const runner = effect(() => {
+  //     dummy = run ? obj.prop : "other";
+  //   });
+
+  //   expect(dummy).toBe("other");
+  //   runner();
+  //   expect(dummy).toBe("other");
+  //   run = true;
+  //   runner();
+  //   expect(dummy).toBe("value");
+  //   obj.prop = "World";
+  //   expect(dummy).toBe("World");
+  // });
 
   // 分支切换与cleanup
   it("should not be triggered by mutating a property, which is used in an inactive branch", () => {

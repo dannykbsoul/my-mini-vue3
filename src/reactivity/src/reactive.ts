@@ -6,14 +6,26 @@ export const enum ReactiveFlags {
   IS_SHALLOW = '__v_isShallow',
 }
 
+export const reactiveMap = new WeakMap();
+export const shallowReactiveMap = new WeakMap();
+
 export function reactive(raw) {
+  // 优先通过原始对象寻找之前创建的代理对象
+  const existProxy = reactiveMap.get(raw);
+  if (existProxy) return existProxy;
   // 防止影响到内层的 reactive，如果已经是转换过的，直接返回
   if (isProxy(raw)) return raw;
-  return createActiveObject(raw, mutableHandlers);
+  const proxy = createActiveObject(raw, mutableHandlers);
+  reactiveMap.set(raw, proxy);
+  return proxy;
 }
 
 export function shallowReactive(raw) {
-  return createActiveObject(raw, shallowReactiveHandlers);
+  const existProxy = shallowReactiveMap.get(raw);
+  if (existProxy) return existProxy;
+  const proxy = createActiveObject(raw, shallowReactiveHandlers);
+  shallowReactiveMap.set(raw, proxy);
+  return proxy;
 }
 
 export function readonly(raw) {

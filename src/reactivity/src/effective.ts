@@ -1,4 +1,4 @@
-import { extend } from "../../shared";
+import { extend, isArray } from "../../shared";
 import { ITERATE_KEY, TriggerType } from "./baseHandlers";
 import { createDep } from "./dep";
 
@@ -92,14 +92,45 @@ export function isTracking() {
   return shouldTrack && activeEffect;
 }
 
-export function trigger(target, key, type) {
+export function pauseTracking() {
+  shouldTrack = false;
+}
+
+export function enableTracking() {
+  shouldTrack = true;
+}
+
+export function trigger(target, key, type, value?) {
   const depsMap = targetMap.get(target);
   if (!depsMap) return;
-  const deps = depsMap.get(key) || [];
+  // const deps = depsMap.get(key) || [];
+  let deps: any = [];
   // 如果新增了 key，需要触发之前 for in 收集到的 effect
   // delete 会影响 for ... in的遍历结果，所以也需要触发它的依赖
   const iterateDeps =
     (type === TriggerType.ADD || TriggerType.DEL ? depsMap.get(ITERATE_KEY) : []) || [];
+  // 数组 set length，会触发 length 的effect，以及修改 length 导致部分数组元素的变更
+  // 比如 arr = [1, 2, 3]，此时设置arr.length = 1; 会导致arr[1]、arr[2]这两个元素发生变更，即要触发相应的副作用函数
+  // 同样 如果数组情况下是 ADD 的情况，则同样需要触发 length 的副作用函数
+  if (isArray(target)) {
+    // length 触发会影响到数组元素的变更
+    if (key === "length") {
+      depsMap.forEach((dep, key) => {
+        if (key === "length" || Number(key) >= value) {
+          deps.push(...dep);
+        }
+      })
+    }
+    // 新增了元素也需要触发 length 绑定的副作用函数
+    if (type === TriggerType.ADD) {
+      deps.push(...(depsMap.get("length")) || []);
+    }
+    if (type === TriggerType.SET) {
+      deps.push(...(depsMap.get(key) || []));
+    }
+  } else {
+    deps.push(...(depsMap.get(key)||[]));
+  }
   // deps执行前进行保存，防止陷入死循环
   triggerEffects(createDep([...deps, ...iterateDeps]));
 }
