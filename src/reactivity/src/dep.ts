@@ -1,4 +1,4 @@
-export const createDep = (effects) => {
+export const createDep = (effects?) => {
   const dep = new Set(effects);
   return dep;
 };

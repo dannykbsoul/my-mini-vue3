@@ -1,6 +1,7 @@
 import { extend, hasChanged, hasOwn, isArray, isIntegerKey, isObject, isSymbol } from "../../shared";
 import { enableTracking, pauseTracking, track, trigger } from "./effective";
 import { reactive, ReactiveFlags, readonly } from "./reactive";
+import { isRef } from "./ref";
 
 // 对于一些内置的 symbol 类型，不希望收集依赖
 const builtInSymbols = new Set(
@@ -92,6 +93,9 @@ function createSetter() {
         ? TriggerType.SET
         : TriggerType.ADD;
     const oldValue = Reflect.get(target, key);
+    if (isRef(oldValue) && !isRef(value)) {
+      oldValue.value = value;
+    }
     const res = Reflect.set(target, key, value);
     // reveiver 就是 target 的代理对象，此时才会去考虑触发
     if (reveiver.raw === target) {

@@ -1,5 +1,6 @@
 import { effect } from "../src/effective";
-import { isRef, proxyRefs, ref, unref } from "../src/ref";
+import { reactive } from "../src/reactive";
+import { customRef, isRef, proxyRefs, ref, shallowRef, toRef, toRefs, unref } from "../src/ref";
 
 describe("reactivity/ref", () => {
   it("should hold a value", () => {
@@ -60,16 +61,16 @@ describe("reactivity/ref", () => {
     expect(proxyUser.age).toBe(10);
   });
 
-  // it("should work without initial value", () => {
-  //   const a = ref();
-  //   let dummy;
-  //   effect(() => {
-  //     dummy = a.value;
-  //   });
-  //   expect(dummy).toBe(undefined);
-  //   a.value = 2;
-  //   expect(dummy).toBe(2);
-  // });
+  it("should work without initial value", () => {
+    const a = ref();
+    let dummy;
+    effect(() => {
+      dummy = a.value;
+    });
+    expect(dummy).toBe(undefined);
+    a.value = 2;
+    expect(dummy).toBe(2);
+  });
 
   // it("should work like a normal property when nested in a reactive object", () => {
   //   const a = ref(1);
@@ -251,90 +252,91 @@ describe("reactivity/ref", () => {
     expect(isRef({ value: 0 })).toBe(false);
   });
 
-  // test("toRef", () => {
-  //   const a = reactive({
-  //     x: 1,
-  //   });
-  //   const x = toRef(a, "x");
-  //   expect(isRef(x)).toBe(true);
-  //   expect(x.value).toBe(1);
+  // toRef 主要用来解决响应丢失问题
+  test("toRef", () => {
+    const a = reactive({
+      x: 1,
+    });
+    const x = toRef(a, "x");
+    expect(isRef(x)).toBe(true);
+    expect(x.value).toBe(1);
 
-  //   // source -> proxy
-  //   a.x = 2;
-  //   expect(x.value).toBe(2);
+    // source -> proxy
+    a.x = 2;
+    expect(x.value).toBe(2);
 
-  //   // proxy -> source
-  //   x.value = 3;
-  //   expect(a.x).toBe(3);
+    // proxy -> source
+    x.value = 3;
+    expect(a.x).toBe(3);
 
-  //   // reactivity
-  //   let dummyX;
-  //   effect(() => {
-  //     dummyX = x.value;
-  //   });
-  //   expect(dummyX).toBe(x.value);
+    // reactivity
+    let dummyX;
+    effect(() => {
+      dummyX = x.value;
+    });
+    expect(dummyX).toBe(x.value);
 
-  //   // mutating source should trigger effect using the proxy refs
-  //   a.x = 4;
-  //   expect(dummyX).toBe(4);
+    // mutating source should trigger effect using the proxy refs
+    a.x = 4;
+    expect(dummyX).toBe(4);
 
-  //   // should keep ref
-  //   const r = { x: ref(1) };
-  //   expect(toRef(r, "x")).toBe(r.x);
-  // });
+    // should keep ref
+    const r = { x: ref(1) };
+    expect(toRef(r, "x")).toBe(r.x);
+  });
 
-  // test("toRef default value", () => {
-  //   const a: { x: number | undefined } = { x: undefined };
-  //   const x = toRef(a, "x", 1);
-  //   expect(x.value).toBe(1);
+  test("toRef default value", () => {
+    const a: { x: number | undefined } = { x: undefined };
+    const x = toRef(a, "x", 1);
+    expect(x.value).toBe(1);
 
-  //   a.x = 2;
-  //   expect(x.value).toBe(2);
+    a.x = 2;
+    expect(x.value).toBe(2);
 
-  //   a.x = undefined;
-  //   expect(x.value).toBe(1);
-  // });
+    a.x = undefined;
+    expect(x.value).toBe(1);
+  });
 
-  // test("toRefs", () => {
-  //   const a = reactive({
-  //     x: 1,
-  //     y: 2,
-  //   });
+  test("toRefs", () => {
+    const a = reactive({
+      x: 1,
+      y: 2,
+    });
 
-  //   const { x, y } = toRefs(a);
+    const { x, y } = toRefs(a);
 
-  //   expect(isRef(x)).toBe(true);
-  //   expect(isRef(y)).toBe(true);
-  //   expect(x.value).toBe(1);
-  //   expect(y.value).toBe(2);
+    expect(isRef(x)).toBe(true);
+    expect(isRef(y)).toBe(true);
+    expect(x.value).toBe(1);
+    expect(y.value).toBe(2);
 
-  //   // source -> proxy
-  //   a.x = 2;
-  //   a.y = 3;
-  //   expect(x.value).toBe(2);
-  //   expect(y.value).toBe(3);
+    // source -> proxy
+    a.x = 2;
+    a.y = 3;
+    expect(x.value).toBe(2);
+    expect(y.value).toBe(3);
 
-  //   // proxy -> source
-  //   x.value = 3;
-  //   y.value = 4;
-  //   expect(a.x).toBe(3);
-  //   expect(a.y).toBe(4);
+    // proxy -> source
+    x.value = 3;
+    y.value = 4;
+    expect(a.x).toBe(3);
+    expect(a.y).toBe(4);
 
-  //   // reactivity
-  //   let dummyX, dummyY;
-  //   effect(() => {
-  //     dummyX = x.value;
-  //     dummyY = y.value;
-  //   });
-  //   expect(dummyX).toBe(x.value);
-  //   expect(dummyY).toBe(y.value);
+    // reactivity
+    let dummyX, dummyY;
+    effect(() => {
+      dummyX = x.value;
+      dummyY = y.value;
+    });
+    expect(dummyX).toBe(x.value);
+    expect(dummyY).toBe(y.value);
 
-  //   // mutating source should trigger effect using the proxy refs
-  //   a.x = 4;
-  //   a.y = 5;
-  //   expect(dummyX).toBe(4);
-  //   expect(dummyY).toBe(5);
-  // });
+    // mutating source should trigger effect using the proxy refs
+    a.x = 4;
+    a.y = 5;
+    expect(dummyX).toBe(4);
+    expect(dummyY).toBe(5);
+  });
 
   // test("toRefs should warn on plain object", () => {
   //   toRefs({});
@@ -346,67 +348,67 @@ describe("reactivity/ref", () => {
   //   expect(`toRefs() expects a reactive object`).toHaveBeenWarned();
   // });
 
-  // test("toRefs reactive array", () => {
-  //   const arr = reactive(["a", "b", "c"]);
-  //   const refs = toRefs(arr);
+  test("toRefs reactive array", () => {
+    const arr = reactive(["a", "b", "c"]);
+    const refs = toRefs(arr);
 
-  //   expect(Array.isArray(refs)).toBe(true);
+    expect(Array.isArray(refs)).toBe(true);
 
-  //   refs[0].value = "1";
-  //   expect(arr[0]).toBe("1");
+    refs[0].value = "1";
+    expect(arr[0]).toBe("1");
 
-  //   arr[1] = "2";
-  //   expect(refs[1].value).toBe("2");
-  // });
+    arr[1] = "2";
+    expect(refs[1].value).toBe("2");
+  });
 
-  // test("customRef", () => {
-  //   let value = 1;
-  //   let _trigger: () => void;
+  test("customRef", () => {
+    let value = 1;
+    let _trigger: () => void;
 
-  //   const custom = customRef((track, trigger) => ({
-  //     get() {
-  //       track();
-  //       return value;
-  //     },
-  //     set(newValue: number) {
-  //       value = newValue;
-  //       _trigger = trigger;
-  //     },
-  //   }));
+    const custom = customRef((track, trigger) => ({
+      get() {
+        track();
+        return value;
+      },
+      set(newValue: number) {
+        value = newValue;
+        _trigger = trigger;
+      },
+    }));
 
-  //   expect(isRef(custom)).toBe(true);
+    expect(isRef(custom)).toBe(true);
 
-  //   let dummy;
-  //   effect(() => {
-  //     dummy = custom.value;
-  //   });
-  //   expect(dummy).toBe(1);
+    let dummy;
+    effect(() => {
+      dummy = custom.value;
+    });
+    expect(dummy).toBe(1);
 
-  //   custom.value = 2;
-  //   // should not trigger yet
-  //   expect(dummy).toBe(1);
+    custom.value = 2;
+    // should not trigger yet
+    expect(dummy).toBe(1);
 
-  //   _trigger!();
-  //   expect(dummy).toBe(2);
-  // });
+    _trigger!();
+    expect(dummy).toBe(2);
+  });
 
-  // test("should not trigger when setting value to same proxy", () => {
-  //   const obj = reactive({ count: 0 });
+  test("should not trigger when setting value to same proxy", () => {
+    const obj = reactive({ count: 0 });
 
-  //   const a = ref(obj);
-  //   const spy1 = jest.fn(() => a.value);
+    const a = ref(obj);
+    const spy1 = jest.fn(() => a.value);
 
-  //   effect(spy1);
+    effect(spy1);
 
-  //   a.value = obj;
-  //   expect(spy1).toBeCalledTimes(1);
+    a.value = obj;
+    expect(spy1).toBeCalledTimes(1);
 
-  //   const b = shallowRef(obj);
-  //   const spy2 = jest.fn(() => b.value);
+    const b = shallowRef(obj);
+    const spy2 = jest.fn(() => b.value);
 
-  //   effect(spy2);
+    effect(spy2);
 
-  //   b.value = obj;
-  //   expect(spy2).toBeCalledTimes(1);
-  // });
+    b.value = obj;
+    expect(spy2).toBeCalledTimes(1);
+  });
 });

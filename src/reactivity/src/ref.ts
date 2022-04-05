@@ -1,18 +1,18 @@
-import { hasChanged, isObject } from "../../shared";
+import { hasChanged, isArray, isObject } from "../../shared";
 import { createDep } from "./dep";
 import { isTracking, trackEffects, triggerEffects } from "./effective";
-import { reactive } from "./reactive";
+import { isProxy, reactive } from "./reactive";
 
-class refImpl {
+class RefImpl {
   // ref只有一个值，只会对应一个dep
   public dep: any;
   public __v_isRef = true;
   private _value: any;
   private _rawValue: any;
-  constructor(value) {
+  constructor(value, isShallow = false) {
     this._rawValue = value;
     // 如果 value 是 object，则需要用 reactive 包裹 value
-    this._value = convert(value);
+    this._value = isShallow ? value : convert(value);
     this.dep = new Set();
   }
   get value() {
@@ -26,25 +26,98 @@ class refImpl {
       // 先修改值 再执行trigger
       this._rawValue = newValue;
       this._value = convert(newValue);
-      triggerEffects(createDep(this.dep));
+      triggerRefValue(this);
     }
   }
 }
 
+class ObjectRefImpl {
+  public readonly __v_isRef = true;
+
+  constructor(
+    private readonly _object,
+    private readonly _key,
+    private readonly _defaultValue
+  ) {}
+
+  get value() {
+    const val = this._object[this._key];
+    return val === undefined ? this._defaultValue : val;
+  }
+
+  set value(newVal) {
+    this._object[this._key] = newVal;
+  }
+}
+
 export function trackRefValue(ref) {
-  isTracking() && trackEffects(ref.dep);
+  isTracking() && trackEffects(ref.dep || (ref.dep = createDep()));
+}
+
+export function triggerRefValue(ref) {
+  triggerEffects(createDep(ref.dep));
 }
 
 function convert(value) {
   return isObject(value) ? reactive(value) : value;
 }
 
-export function ref(value) {
-  return new refImpl(value);
+export function ref(value?: unknown) {
+  return new RefImpl(value);
+}
+
+export function shallowRef(value?: unknown) {
+  return new RefImpl(value, true);
+}
+
+export function toRef(target, key, defaultValue?) {
+  const val = target[key];
+  return isRef(val)
+    ? val
+    : new ObjectRefImpl(target, key, defaultValue);
+}
+
+export function toRefs(target) {
+  if (!isProxy(target)) {
+    console.warn(
+      `toRefs() expects a reactive object but received a plain one.`
+    );
+  }
+  const ret: any = isArray(target) ? new Array(target.length) : {};
+  for (const key in target) {
+    ret[key] = toRef(target, key);
+  }
+  return ret;
+}
+
+class CustomRef {
+  // ref只有一个值，只会对应一个dep
+  public dep: any;
+  public __v_isRef = true;
+  private _get: any;
+  private _set: any;
+  constructor(func) {
+    const { get, set } = func(
+      () => trackRefValue(this),
+      () => triggerRefValue(this)
+    );
+    this._get = get;
+    this._set = set;
+  }
+  get value() {
+    return this._get();
+  }
+  set value(newVal) {
+    this._set(newVal);
+  }
+}
+
+export function customRef(func) {
+  return new CustomRef(func);
 }
 
 export function isRef(ref) {
-  return !!ref.__v_isRef;
+  return !!(ref && ref.__v_isRef);
 }
 
 export function unref(ref) {
