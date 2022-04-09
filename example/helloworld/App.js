@@ -1,4 +1,5 @@
 import { h } from "../../lib/mini-vue.esm.js"
+import { Foo } from "./Foo.js"
 
 window.self = null;
 // 这里直接 render 和写template一样，template 需要经过编译转换成 render 函数
@@ -17,11 +18,12 @@ export const App = {
           console.log("mousedown");
         }
       },
-      "hi, " + this.msg
-      // [
-      //   h("p", {class: "red"}, "hi"),
-      //   h("p", {class: "blue"}, "mini-vue")
-      // ]
+      [
+        h("div", {}, "hi, " + this.msg),
+        h(Foo, {
+          count: 1,
+        })
+      ]
     );
   },
   setup() {
