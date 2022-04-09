@@ -46,7 +46,14 @@ function mountElement(vnode, container) {
   // props
   for (const key in props) {
     const val = props[key];
-    el.setAttribute(key, val);
+    // 具体的 click => 通用的事件处理
+    // on + Event name
+    const isOn = (key) => /^on[A-Z]/.test(key);
+    if (isOn(key)) {
+      el.addEventListener(key.slice(2).toLowerCase(), val);
+    } else {
+      el.setAttribute(key, val);
+    }
   }
 
   container.append(el);
