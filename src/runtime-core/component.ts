@@ -1,3 +1,4 @@
+import { proxyRefs } from "../reactivity";
 import { shallowReadonly } from "../reactivity/src/reactive";
 import { emit } from "./componentEmit";
 import { initProps } from "./componentProps";
@@ -5,7 +6,6 @@ import { PublicInstanceProxyHandlers } from "./componentPublicInstance";
 import { initSlots } from "./componentSlots";
 
 export function createComponentInstance(vnode, parent) {
-  console.log("createComponentInstance",parent);
   const component = {
     vnode,
     type: vnode.type,
@@ -16,6 +16,8 @@ export function createComponentInstance(vnode, parent) {
     // 将来 inject 的时候可以沿着 provides 指向查找到对应的值
     provides: parent ? parent.provides : {},
     parent,
+    isMounted: false,
+    subTree: {},
     emit: () => {},
   };
   component.emit = emit.bind(null, component) as any;
@@ -54,7 +56,7 @@ function handleSetupResult(instance, setupResult) {
   // function
 
   if (typeof setupResult === "object") {
-    instance.setupState = setupResult;
+    instance.setupState = proxyRefs(setupResult);
   }
 
   finishComponentSetup(instance);

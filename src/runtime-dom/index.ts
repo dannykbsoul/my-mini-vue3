@@ -1,12 +1,10 @@
 import { createRenderer } from "../runtime-core";
 
 function createElement(type) {
-  console.log("createElement-------");
   return document.createElement(type);
 }
 
 function patchProp(el, key, val) {
-  console.log("patchProp-----");
   // 具体的 click => 通用的事件处理
   // on + Event name
   const isOn = (key) => /^on[A-Z]/.test(key);
@@ -18,7 +16,6 @@ function patchProp(el, key, val) {
 }
 
 function insert(el, container) {
-  console.log("insert-----");
   container.append(el);
 }
 
