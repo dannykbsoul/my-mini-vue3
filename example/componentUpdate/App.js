@@ -8,17 +8,26 @@ export default {
   name: "App",
   setup() {
     const msg = ref("123");
+    const foo = ref("234")
     window.msg = msg
 
     const changeChildProps = () => {
       msg.value = Math.random(0,1);
+      foo.value = undefined;
     };
 
-    return { msg, changeChildProps };
+    return {
+      msg, 
+      changeChildProps,
+      foo,
+    };
   },
 
   render() {
-    return h("div", {}, [
+    return h("div", {
+      msg: this.msg,
+      foo: this.foo,
+    }, [
       h("div", {}, "你好"),
       h(
         "button",
