@@ -4,6 +4,7 @@ import { ShapeFlags } from "../shared/ShapeFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { shouldUpdateComponent } from "./componentUpdateUtils";
 import { createAppAPI } from "./createApp";
+import { queueJobs } from "./scheduler";
 import { Fragment, Text } from "./vnode";
 
 export function createRenderer(options) {
@@ -326,31 +327,38 @@ export function createRenderer(options) {
 
   function setupRenderEffect(instance, container, initialVNode, anchor) {
     // effect 做依赖收集，当内部有变更会重新执行 render
-    instance.update = effect(() => {
-      if (!instance.isMounted) {
-        const { proxy } = instance;
-        const subTree = (instance.subTree = instance.render.call(proxy));
-        instance.subTree = subTree;
-        // vnode -> patch
-        patch(null, subTree, container, instance, anchor);
-        // vnode -> element -> mountElement
-        // 此时所有的 subtree 处理完成，然后挂载到组件的 vnode 上
-        initialVNode.el = subTree.el;
+    instance.update = effect(
+      () => {
+        if (!instance.isMounted) {
+          const { proxy } = instance;
+          const subTree = (instance.subTree = instance.render.call(proxy));
+          instance.subTree = subTree;
+          // vnode -> patch
+          patch(null, subTree, container, instance, anchor);
+          // vnode -> element -> mountElement
+          // 此时所有的 subtree 处理完成，然后挂载到组件的 vnode 上
+          initialVNode.el = subTree.el;
 
-        instance.isMounted = true;
-      } else {
-
-        const { proxy, vnode, next } = instance;
-        if (next) {
-          next.el = vnode.el;
-          updateComponentPreRender(instance, next);
+          instance.isMounted = true;
+        } else {
+          const { proxy, vnode, next } = instance;
+          if (next) {
+            next.el = vnode.el;
+            updateComponentPreRender(instance, next);
+          }
+          const subTree = instance.render.call(proxy);
+          const prevSubTree = instance.subTree;
+          instance.subTree = subTree;
+          patch(prevSubTree, subTree, container, instance, anchor);
         }
-        const subTree = instance.render.call(proxy);
-        const prevSubTree = instance.subTree;
-        instance.subTree = subTree;
-        patch(prevSubTree, subTree, container, instance, anchor);
+      },
+      {
+        // 视图更新是异步的，如果想要得到视图的数据，则需要 nextTick
+        scheduler() {
+          queueJobs(instance.update);
+        },
       }
-    });
+    );
   }
 
   function updateComponentPreRender(instance, nextVNode) {
