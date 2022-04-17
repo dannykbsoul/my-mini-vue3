@@ -304,7 +304,7 @@ export function createRenderer(options) {
   function mountElement(vnode, container, parentComponent, anchor) {
     const { type, props, children, shapeFlag } = vnode;
 
-    // 这里 el 是挂载到当前 element 类型的 vnode 上的
+    // 这里 el 是挂载到当前 element 类型的 vnode 上的，这样在 vnode 与真实 dom 元素之间就建立了联系
     const el = (vnode.el = hostCreateElement(type));
 
     // string | array

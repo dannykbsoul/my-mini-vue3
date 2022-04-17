@@ -19,7 +19,38 @@ function patchProp(el, key, preVal, nextVal) {
   // on + Event name
   const isOn = (key) => /^on[A-Z]/.test(key);
   if (isOn(key)) {
-    el.addEventListener(key.slice(2).toLowerCase(), nextVal);
+    const name = key.slice(2).toLowerCase();
+    // 先移除之前添加的事件处理函数
+    // preVal && el.removeEventListener(name, preVal);
+    // 优化：如何避免每次更新我们都需要调用 removeEventListener
+
+    // 伪造个虚拟的时间处理函数 invoker，并赋值到 el._vei 上
+    const invokers = el._vei || (el._vei = {});
+    // 根据事件名获取 invoker
+    let invoker = invokers[key];
+    if (nextVal) {
+      if (!invoker) {
+        // 没有 invoker，需要新建，并将 invoker 缓存到 el._vei 上
+        invoker = el._vei[key] = (e) => {
+          // 对于同一个类型的事件而言，可能绑定了多个事件处理函数
+          if (isArray(invoker.value)) {
+            invoker.value.forEach((fn) => fn(e));
+          } else {
+            // 当伪造的 invoker 执行的时候，会执行真正的时间处理函数
+            invoker.value(e);
+          }
+        };
+        // 将真正的事件处理函数赋值给 invoker.value
+        invoker.value = nextVal;
+        el.addEventListener(name, invoker);
+      } else {
+        // 如果 invoker 存在，意味着需要更新事件处理函数，我们只需要更新它的 value 即可，而不需要通过 removeEventListener
+        invoker.value = nextVal;
+      }
+    } else if (invoker) {
+      el.removeEventListener(name, invoker);
+    }
+    el.addEventListener(name, nextVal);
   } else {
     if (nextVal === undefined || nextVal === null) {
       el.removeAttribute(key);
