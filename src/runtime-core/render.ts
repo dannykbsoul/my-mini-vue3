@@ -7,6 +7,10 @@ import { createAppAPI } from "./createApp";
 import { queueJobs } from "./scheduler";
 import { Fragment, Text } from "./vnode";
 
+// 这里需要 createRenderer，而不直接定义 render 函数，因为渲染器的内容非常广泛，
+// 而用来吧 vnode 渲染成真实 dom 的 render 函数只是其中一部分
+// 通过 options 传入与特定平台强依赖的配置项，意味着可以完成非浏览器环境下的渲染工作
+// 这样核心代码不再依赖平台特有的API，再通过支持个性化配置的能力来实现跨平台
 export function createRenderer(options) {
 
   const {
