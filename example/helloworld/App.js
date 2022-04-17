@@ -10,7 +10,6 @@ export const App = {
       "div",
       {
         id: "root",
-        class: ["red", "blue"],
         onClick() {
           console.log("click");
         },
@@ -19,7 +18,9 @@ export const App = {
         }
       },
       [
-        h("div", {}, "hi, " + this.msg),
+        h("div", {
+          class: [{blue: true}, "red", "12 34"],
+        }, "hi, " + this.msg),
         h(Foo, {
           count: 1,
         })

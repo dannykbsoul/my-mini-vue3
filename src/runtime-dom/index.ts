@@ -1,4 +1,5 @@
 import { createRenderer } from "../runtime-core";
+import { isArray, isObject, isString } from "../shared";
 
 function createElement(type) {
   return document.createElement(type);
@@ -23,7 +24,10 @@ function patchProp(el, key, preVal, nextVal) {
     if (nextVal === undefined || nextVal === null) {
       el.removeAttribute(key);
     } else {
-      if (shouldSetAsProps(el, key, nextVal)) {
+      // 使用 el.className 设置 class 性能最好
+      if (key === "class" && nextVal) {
+        el.className = normalizeClass(nextVal);
+      } else if (shouldSetAsProps(el, key, nextVal)) {
         const type = typeof el[key];
         // boolean 类型，并且赋值为空字符串，需赋值为 true
         // 比如说设置了 disabled 属性，此时转换为 VNode 的时候，disabled 为 '', el.disabled = ''
@@ -47,6 +51,29 @@ function shouldSetAsProps(el, key, value) {
   if (key === "form" && el.tagName === "INPUT") return false;
   // 判断 key 是否存在对应的 DOM properties
   return key in el;
+}
+
+// 对于 class 的不同处理
+// 1. 字符串
+// 2. 对象
+// 3. 数组
+function normalizeClass(value) {
+  let res = "";
+  if (isString(value)) {
+    res = value;
+  } else if (isArray(value)) {
+    for (const v of value) {
+      const normalized = normalizeClass(v);
+      if (normalized) res += normalized + " ";
+    }
+  } else if (isObject(value)) {
+    for (const name in value) {
+      if (value[name]) {
+        res += name + " ";
+      }
+    }
+  }
+  return res.trim();
 }
 
 function insert(child, parent, anchor) {
