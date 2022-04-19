@@ -1,5 +1,6 @@
 import { proxyRefs } from "../reactivity";
 import { shallowReadonly } from "../reactivity/src/reactive";
+import { isFunction, isObject } from "../shared";
 import { emit } from "./componentEmit";
 import { initProps } from "./componentProps";
 import { PublicInstanceProxyHandlers } from "./componentPublicInstance";
@@ -20,6 +21,7 @@ export function createComponentInstance(vnode, parent) {
     isMounted: false,
     subTree: {},
     emit: () => {},
+    mounted: [],
   };
   component.emit = emit.bind(null, component) as any;
   return component;
@@ -56,11 +58,11 @@ function setupStatefulComponent(instance) {
 }
 
 function handleSetupResult(instance, setupResult) {
-  // TODO
-  // function
-
-  if (typeof setupResult === "object") {
+  if (isObject(setupResult)) {
     instance.setupState = proxyRefs(setupResult);
+  } else if (isFunction(setupResult)) {
+    if (instance.type.render) console.warn("steup 函数返回渲染函数， render 选项将被忽略");
+    instance.type.render = setupResult;
   }
 
   finishComponentSetup(instance);
@@ -72,7 +74,7 @@ function finishComponentSetup(instance) {
   instance.render = Component.render;
 }
 
-let currentInstance = null;
+let currentInstance: any = null;
 export function getCurrentInstance() {
   return currentInstance;
 }
@@ -81,4 +83,12 @@ export function getCurrentInstance() {
 // 这样 currentInstance 的改变只能通过这个函数，通过在这里打断点就能追踪到 currentInstance 的变化
 export function setCurrentInstance(instance) {
   currentInstance = instance;
+}
+
+export function onMounted(fn) {
+  if (currentInstance) {
+    currentInstance.mounted.push(fn);
+  } else {
+    console.error("onMounted 函数只能在 setup 中调用");
+  }
 }

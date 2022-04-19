@@ -1,4 +1,4 @@
-import { h, ref } from "../../lib/mini-vue.esm.js";
+import { h, ref, onMounted } from "../../lib/mini-vue.esm.js";
 import Child from "./Child.js";
 
 export const App = {
@@ -8,6 +8,14 @@ export const App = {
     const count = ref(1);
 
     window.msg = msg;
+    
+    onMounted(() => {
+      console.log("App —————— onMounted 1");
+    })
+
+    onMounted(() => {
+      console.log("App —————— onMounted 2");
+    })
 
     const changeChildProps = () => {
       msg.value = "456";

@@ -385,6 +385,10 @@ export function createRenderer(options) {
           // 调用 mounted 钩子函数，Called after the component has been mounted.
           // TODO 后期优化，mounted 需要将里面的 this 指向 data
           mounted && mounted();
+
+          // setup 内的生命周期函数
+          // TODO 后期优化，mounted 需要将里面的 this 指向 data
+          instance.mounted && instance.mounted.forEach((fn) => fn());
         } else {
           const { proxy, vnode, next, type = {} } = instance;
           const { beforeUpdate, updated } = type;
