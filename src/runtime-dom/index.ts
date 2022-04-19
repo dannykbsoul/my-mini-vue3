@@ -129,12 +129,32 @@ function setElementText(el, text) {
   el.textContent = text;
 }
 
+function createText(text) {
+  return document.createTextNode(text);
+}
+
+function setText(el, text) {
+  el.nodeValue = text;
+}
+
+function createComment(text) {
+  return document.createComment(text);
+}
+
+function setComment(el, text) {
+  el.nodeValue = text;
+}
+
 const renderer: any = createRenderer({
   createElement,
   patchProp,
   insert,
   remove,
   setElementText,
+  createText,
+  setText,
+  createComment,
+  setComment,
 });
 
 export function createApp(...args) {

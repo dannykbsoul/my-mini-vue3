@@ -5,7 +5,7 @@ import { createComponentInstance, setupComponent } from "./component";
 import { shouldUpdateComponent } from "./componentUpdateUtils";
 import { createAppAPI } from "./createApp";
 import { queueJobs } from "./scheduler";
-import { Fragment, Text } from "./vnode";
+import { Fragment, Text, Comment } from "./vnode";
 
 // 这里需要 createRenderer，而不直接定义 render 函数，因为渲染器的内容非常广泛，
 // 而用来吧 vnode 渲染成真实 dom 的 render 函数只是其中一部分
@@ -19,6 +19,10 @@ export function createRenderer(options) {
     insert: hostInsert,
     remove: hostRemove,
     setElementText: hostSetElementText,
+    createText: hostCreateText,
+    setText: hostSetText,
+    createComment: hostCreateComment,
+    setComment: hostSetComment,
   } = options;
 
   function render(vnode, container) {
@@ -37,6 +41,9 @@ export function createRenderer(options) {
       case Text:
         processText(n1, n2, container);
         break;
+      case Comment:
+        processComment(n1, n2, container);
+        break;
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
           processElement(n1, n2, container, parentComponent, anchor);
@@ -52,9 +59,29 @@ export function createRenderer(options) {
   }
 
   function processText(n1, n2, container) {
-    const { children } = n2;
-    const textNode = (n2.el = document.createTextNode(children));
-    container.append(textNode);
+    if (!n1) {
+      const { children } = n2;
+      const textNode = (n2.el = hostCreateText(children));
+      hostInsert(textNode, container);
+    } else {
+      const textNode = (n2.el = n1.el);
+      if (n2.children !== n1.children) {
+        hostSetText(textNode, n2.chidlren);
+      }
+    }
+  }
+
+  function processComment(n1, n2, container) {
+    if (!n1) {
+      const { children } = n2;
+      const commentNode = (n2.el = hostCreateComment(children));
+      hostInsert(commentNode, container);
+    } else {
+      const commentNode = (n2.el = n1.el);
+      if (n2.children !== n1.children) {
+        hostSetComment(commentNode, n2.chidlren);
+      }
+    }
   }
 
   function processComponent(n1, n2, container, parentComponent, anchor) {
