@@ -32,6 +32,10 @@ function patchProp(el, key, preVal, nextVal) {
       if (!invoker) {
         // 没有 invoker，需要新建，并将 invoker 缓存到 el._vei 上
         invoker = el._vei[key] = (e) => {
+          // e.timeStamp 是事件发生的时间
+          // 如果事件发生的时间早于事件处理函数绑定的时间，则不执行事件处理函数
+          if (e.timeStamp < invoker.attached) return;
+
           // 对于同一个类型的事件而言，可能绑定了多个事件处理函数
           if (isArray(invoker.value)) {
             invoker.value.forEach((fn) => fn(e));
@@ -42,6 +46,8 @@ function patchProp(el, key, preVal, nextVal) {
         };
         // 将真正的事件处理函数赋值给 invoker.value
         invoker.value = nextVal;
+        // 添加 invoker.attached 属性，存储事件处理函数被绑定的时间
+        invoker.attached = performance.now();
         el.addEventListener(name, invoker);
       } else {
         // 如果 invoker 存在，意味着需要更新事件处理函数，我们只需要更新它的 value 即可，而不需要通过 removeEventListener
