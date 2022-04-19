@@ -20,6 +20,25 @@ export const App = {
     return { msg, changeChildProps, changeCount, count };
   },
 
+  beforeCreate() {
+    console.log("App —————— beforeCreate");
+  },
+  created() {
+    console.log("App —————— created");
+  },
+  beforeMount() {
+    console.log("App —————— beforeMount");
+  },
+  mounted() {
+    console.log("App —————— mounted");
+  },
+  beforeUpdate() {
+    console.log("App —————— beforeUpdate");
+  },
+  updated() {
+    console.log("App —————— updated");
+  },
+
   render() {
     return h("div", {}, [
       h("div", {}, "你好"),

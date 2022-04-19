@@ -26,7 +26,10 @@ export function createComponentInstance(vnode, parent) {
 }
 
 export function setupComponent(instance) {
-  // TODO
+  const { type = {} } = instance;
+  const { beforeCreate } = type;
+  // 调用 beforeCreate 钩子函数，Called when the instance is initialized.
+  beforeCreate && beforeCreate();
   // initProps
   initProps(instance, instance.vnode.props);
   // initSlots

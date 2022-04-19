@@ -324,6 +324,11 @@ export function createRenderer(options) {
       parentComponent
     ));
     setupComponent(instance);
+    const { type = {} } = instance;
+    const { created } = type;
+    // 调用 created 钩子函数，Called after the instance has finished processing all state-related options.
+    // TODO 后期优化，created 需要将里面的 this 指向 data
+    created && created();
     setupRenderEffect(instance, container, initialVNode, anchor);
   }
 
@@ -361,7 +366,12 @@ export function createRenderer(options) {
     instance.update = effect(
       () => {
         if (!instance.isMounted) {
-          const { proxy } = instance;
+          const { proxy, type = {} } = instance;
+          const { beforeMount, mounted } = type;
+          // 调用 beforeMount 钩子函数，Called right before the component is to be mounted.
+          // TODO 后期优化，beforeMount 需要将里面的 this 指向 data
+          beforeMount && beforeMount();
+
           const subTree = (instance.subTree = instance.render.call(proxy));
           instance.subTree = subTree;
           // vnode -> patch
@@ -371,8 +381,13 @@ export function createRenderer(options) {
           initialVNode.el = subTree.el;
 
           instance.isMounted = true;
+
+          // 调用 mounted 钩子函数，Called after the component has been mounted.
+          // TODO 后期优化，mounted 需要将里面的 this 指向 data
+          mounted && mounted();
         } else {
-          const { proxy, vnode, next } = instance;
+          const { proxy, vnode, next, type = {} } = instance;
+          const { beforeUpdate, updated } = type;
           if (next) {
             next.el = vnode.el;
             updateComponentPreRender(instance, next);
@@ -380,7 +395,16 @@ export function createRenderer(options) {
           const subTree = instance.render.call(proxy);
           const prevSubTree = instance.subTree;
           instance.subTree = subTree;
+
+          // 调用 beforeUpdate 钩子函数，Called right before the component is about to update its DOM tree due to a reactive state change.
+          // TODO beforeUpdate 需要将里面的 this 指向 data
+          beforeUpdate && beforeUpdate();
+
           patch(prevSubTree, subTree, container, instance, anchor);
+
+          // 调用 updated 钩子函数，Called after the component has updated its DOM tree due to a reactive state change.
+          // TODO updated 需要将里面的 this 指向 data
+          updated && updated();
         }
       },
       {
